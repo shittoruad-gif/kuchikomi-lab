@@ -40,6 +40,11 @@ async function startServer() {
   // OAuth callback
   registerOAuthRoutes(app);
 
+  // Health check
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
