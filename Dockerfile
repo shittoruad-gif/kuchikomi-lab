@@ -13,7 +13,7 @@ RUN pnpm build
 FROM base AS production
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/drizzle ./drizzle
 
