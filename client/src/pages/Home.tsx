@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
 import { INDUSTRIES, PLAN_NAMES, PLAN_PRICES } from "@shared/const";
 import SEOHelmet from "@/components/SEOHelmet";
 
@@ -17,9 +18,49 @@ import SEOHelmet from "@/components/SEOHelmet";
 /*  Hero                                                               */
 /* ------------------------------------------------------------------ */
 
+function NavBar() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  return (
+    <nav className="absolute top-0 left-0 right-0 z-20 px-4 py-4">
+      <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <span className="gradient-text text-xl font-bold">クチコミラボ</span>
+        <div className="flex items-center gap-3">
+          {!isLoading && (
+            isAuthenticated ? (
+              <Link
+                href="/dashboard"
+                className="px-5 py-2 rounded-lg font-medium text-sm border border-white/30 text-white hover:bg-white/10 transition-colors"
+              >
+                ダッシュボード
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-5 py-2 rounded-lg font-medium text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  ログイン
+                </Link>
+                <Link
+                  href="/register"
+                  className="gradient-btn px-5 py-2 rounded-lg font-medium text-sm text-white shadow-lg shadow-purple-500/20"
+                >
+                  新規登録
+                </Link>
+              </>
+            )
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 function Hero() {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden px-4">
+      <NavBar />
       {/* Animated background blobs */}
       <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
       <div className="absolute top-0 -right-4 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />

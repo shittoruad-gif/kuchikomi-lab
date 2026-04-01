@@ -2,6 +2,8 @@ import { Route, Switch, Redirect, useLocation } from "wouter";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "@/pages/Home";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Pricing from "@/pages/Pricing";
 import Trial from "@/pages/Trial";
 import Dashboard from "@/pages/Dashboard";
@@ -26,7 +28,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isAuthenticated) {
-    navigate("/");
+    navigate("/login");
     return null;
   }
 
@@ -46,7 +48,7 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   }
 
   if (!isAdmin) {
-    navigate("/");
+    navigate("/login");
     return null;
   }
 
@@ -58,6 +60,8 @@ export default function App() {
     <>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
         <Route path="/pricing" component={Pricing} />
         <Route path="/trial" component={Trial} />
         <Route path="/dashboard">

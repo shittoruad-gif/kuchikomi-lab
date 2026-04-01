@@ -38,6 +38,11 @@ export async function getUserByOpenId(openId: string) {
   return user ?? null;
 }
 
+export async function getUserByEmail(email: string) {
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return user ?? null;
+}
+
 export async function getUserById(id: number) {
   const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return user ?? null;
@@ -48,6 +53,7 @@ export async function upsertUser(data: {
   name?: string | null;
   email?: string | null;
   loginMethod?: string | null;
+  passwordHash?: string | null;
   lastSignedIn?: Date;
 }) {
   const existing = await getUserByOpenId(data.openId);
@@ -58,6 +64,7 @@ export async function upsertUser(data: {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.loginMethod !== undefined && { loginMethod: data.loginMethod }),
+        ...(data.passwordHash !== undefined && { passwordHash: data.passwordHash }),
         ...(data.lastSignedIn && { lastSignedIn: data.lastSignedIn }),
       })
       .where(eq(users.openId, data.openId));
@@ -67,6 +74,7 @@ export async function upsertUser(data: {
     openId: data.openId,
     name: data.name ?? null,
     email: data.email ?? null,
+    passwordHash: data.passwordHash ?? null,
     loginMethod: data.loginMethod ?? null,
     lastSignedIn: data.lastSignedIn ?? new Date(),
   });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "./_core/trpc";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { PlanType } from "@shared/const";
 import * as db from "./db";
 import { stripe, getOrCreateCustomer } from "./stripe";
@@ -9,6 +9,9 @@ import { STRIPE_PRODUCTS, PLAN_LIMITS } from "./products";
 import { generateReceiptPDF } from "./receipt";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
+import { sdk } from "./_core/sdk";
+import { hashPassword, verifyPassword } from "./auth";
+import { nanoid } from "nanoid";
 import OpenAI from "openai";
 
 let _openai: OpenAI | null = null;
@@ -48,6 +51,91 @@ const authRouter = router({
   me: publicProcedure.query(async ({ ctx }) => {
     return ctx.user ?? null;
   }),
+
+  register: publicProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, "名前を入力してください"),
+        email: z.string().email("有効なメールアドレスを入力してください"),
+        password: z.string().min(6, "パスワードは6文字以上で入力してください"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db.getUserByEmail(input.email);
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "このメールアドレスは既に登録されています",
+        });
+      }
+
+      const passwordHash = await hashPassword(input.password);
+      const openId = `email_${nanoid()}`;
+
+      const user = await db.upsertUser({
+        openId,
+        name: input.name,
+        email: input.email,
+        loginMethod: "email",
+        lastSignedIn: new Date(),
+        passwordHash,
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "ユーザー作成に失敗しました" });
+      }
+
+      // Set session cookie
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: input.name,
+        expiresInMs: ONE_YEAR_MS,
+      });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      return { id: user.id, name: user.name, email: user.email, role: user.role };
+    }),
+
+  login: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email("有効なメールアドレスを入力してください"),
+        password: z.string().min(1, "パスワードを入力してください"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await db.getUserByEmail(input.email);
+      if (!user || !user.passwordHash) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "メールアドレスまたはパスワードが正しくありません",
+        });
+      }
+
+      const valid = await verifyPassword(input.password, user.passwordHash);
+      if (!valid) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "メールアドレスまたはパスワードが正しくありません",
+        });
+      }
+
+      // Update last signed in
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: new Date(),
+      });
+
+      // Set session cookie
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      return { id: user.id, name: user.name, email: user.email, role: user.role };
+    }),
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
     const cookieOptions = getSessionCookieOptions(ctx.req);
