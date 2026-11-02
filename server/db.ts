@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
@@ -7,11 +7,12 @@ import {
   reviewGenerations,
   customQuestions,
   paymentHistory,
+  storeSettings,
 } from "../drizzle/schema";
 import type { PlanType } from "@shared/const";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: MySql2Database | null = null;
 
 function getDb() {
   if (!_db) {
@@ -25,7 +26,7 @@ function getDb() {
 }
 
 export { getDb };
-const db = new Proxy({} as ReturnType<typeof drizzle>, {
+const db = new Proxy({} as MySql2Database, {
   get(_target, prop, receiver) {
     return Reflect.get(getDb(), prop, receiver);
   },
@@ -272,4 +273,42 @@ export async function getPaymentById(id: number, userId: number) {
     .where(and(eq(paymentHistory.id, id), eq(paymentHistory.userId, userId)))
     .limit(1);
   return payment ?? null;
+}
+
+// ============ Store Settings (店頭POP・QRカード用) ============
+
+export async function getStoreSettings(userId: number) {
+  const [row] = await db
+    .select()
+    .from(storeSettings)
+    .where(eq(storeSettings.userId, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function upsertStoreSettings(data: {
+  userId: number;
+  storeName: string;
+  reviewUrl: string;
+  tagline?: string | null;
+}) {
+  const existing = await getStoreSettings(data.userId);
+  if (existing) {
+    await db
+      .update(storeSettings)
+      .set({
+        storeName: data.storeName,
+        reviewUrl: data.reviewUrl,
+        tagline: data.tagline ?? null,
+      })
+      .where(eq(storeSettings.userId, data.userId));
+  } else {
+    await db.insert(storeSettings).values({
+      userId: data.userId,
+      storeName: data.storeName,
+      reviewUrl: data.reviewUrl,
+      tagline: data.tagline ?? null,
+    });
+  }
+  return getStoreSettings(data.userId);
 }
