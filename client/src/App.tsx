@@ -9,6 +9,7 @@ import Trial from "@/pages/Trial";
 import Dashboard from "@/pages/Dashboard";
 import Generate from "@/pages/Generate";
 import CustomQuestions from "@/pages/CustomQuestions";
+import Pop from "@/pages/Pop";
 import PaymentSuccess from "@/pages/PaymentSuccess";
 import PaymentHistory from "@/pages/PaymentHistory";
 import Admin from "@/pages/Admin";
@@ -72,6 +73,9 @@ export default function App() {
         </Route>
         <Route path="/custom-questions">
           <ProtectedRoute component={CustomQuestions} />
+        </Route>
+        <Route path="/pop">
+          <ProtectedRoute component={Pop} />
         </Route>
         <Route path="/payment/success">
           <ProtectedRoute component={PaymentSuccess} />

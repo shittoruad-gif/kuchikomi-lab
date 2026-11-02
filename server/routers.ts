@@ -7,6 +7,8 @@ import * as db from "./db";
 import { stripe, getOrCreateCustomer } from "./stripe";
 import { STRIPE_PRODUCTS, PLAN_LIMITS } from "./products";
 import { generateReceiptPDF } from "./receipt";
+import { renderPopPdf, POP_PNG_MAX_BYTES } from "./pop";
+import { checkStoreName, checkReviewUrl, checkFreeText, POP_FORMATS, POP_LIMITS } from "@shared/pop";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
@@ -420,6 +422,60 @@ const adminRouter = router({
     }),
 });
 
+
+// ============ Store Settings Router（店名・口コミ導線URL） ============
+const storeRouter = router({
+  get: protectedProcedure.query(async ({ ctx }) => {
+    return db.getStoreSettings(ctx.user.id);
+  }),
+
+  save: protectedProcedure
+    .input(
+      z.object({
+        storeName: z.string().max(POP_LIMITS.storeNameMax),
+        reviewUrl: z.string().max(POP_LIMITS.reviewUrlMax),
+        tagline: z.string().max(POP_LIMITS.taglineMax).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const n = checkStoreName(input.storeName);
+      if (!n.ok) throw new TRPCError({ code: "BAD_REQUEST", message: n.reason });
+      const u = checkReviewUrl(input.reviewUrl);
+      if (!u.ok) throw new TRPCError({ code: "BAD_REQUEST", message: u.reason });
+      const t = checkFreeText(input.tagline ?? "");
+      if (!t.ok) throw new TRPCError({ code: "BAD_REQUEST", message: t.reason });
+      const tagline = (input.tagline ?? "").trim();
+      return db.upsertStoreSettings({
+        userId: ctx.user.id,
+        storeName: input.storeName.trim(),
+        reviewUrl: input.reviewUrl.trim(),
+        tagline: tagline.length > 0 ? tagline : null,
+      });
+    }),
+});
+
+// ============ POP Router（店頭POP・QRカードの PDF 化） ============
+const popRouter = router({
+  renderPdf: protectedProcedure
+    .input(
+      z.object({
+        format: z.enum(Object.keys(POP_FORMATS) as [keyof typeof POP_FORMATS, ...(keyof typeof POP_FORMATS)[]]),
+        // ブラウザで描いた PNG（base64, data: 接頭辞なし）
+        pngBase64: z.string().max(Math.ceil((POP_PNG_MAX_BYTES * 4) / 3) + 16),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const png = Buffer.from(input.pngBase64, "base64");
+      let pdf: Buffer;
+      try {
+        pdf = await renderPopPdf(png, input.format);
+      } catch (e) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: e instanceof Error ? e.message : "PDFの生成に失敗しました" });
+      }
+      return { pdf: pdf.toString("base64"), filename: `kuchikomi-pop-${input.format}.pdf` };
+    }),
+});
+
 // ============ App Router ============
 export const appRouter = router({
   auth: authRouter,
@@ -428,6 +484,8 @@ export const appRouter = router({
   customQuestions: customQuestionsRouter,
   payment: paymentRouter,
   admin: adminRouter,
+  store: storeRouter,
+  pop: popRouter,
 });
 
 export type AppRouter = typeof appRouter;

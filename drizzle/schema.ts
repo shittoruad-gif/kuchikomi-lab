@@ -92,3 +92,19 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type ReviewGeneration = typeof reviewGenerations.$inferSelect;
 export type CustomQuestion = typeof customQuestions.$inferSelect;
 export type PaymentHistory = typeof paymentHistory.$inferSelect;
+
+// 店舗設定（店頭POP・QRカード用。店名と口コミ導線URLを1ユーザー1件保存）
+export const storeSettings = mysqlTable("storeSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  storeName: varchar("storeName", { length: 100 }).notNull(),
+  reviewUrl: varchar("reviewUrl", { length: 500 }).notNull(),
+  tagline: varchar("tagline", { length: 60 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StoreSettings = typeof storeSettings.$inferSelect;

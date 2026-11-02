@@ -8,6 +8,13 @@
       "when": 1775057023151,
       "tag": "0000_flaky_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1793587283191,
+      "tag": "0001_strange_speed_demon",
+      "breakpoints": true
     }
   ]
 }

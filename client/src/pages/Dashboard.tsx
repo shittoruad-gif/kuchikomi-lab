@@ -11,6 +11,7 @@ import {
   Crown,
   ArrowRight,
   LogOut,
+  QrCode,
 } from "lucide-react";
 import SEOHelmet from "@/components/SEOHelmet";
 
@@ -275,6 +276,13 @@ export default function Dashboard() {
             >
               <Sparkles className="h-5 w-5" />
               口コミを生成する
+            </Link>
+            <Link
+              href="/pop"
+              className="inline-flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-900/20 px-5 py-3 font-medium text-purple-300 transition hover:bg-purple-900/40"
+            >
+              <QrCode className="h-5 w-5" />
+              店頭POP・QRカード
             </Link>
             {planKey === "premium" && (
               <Link
